@@ -327,14 +327,16 @@ class ZiroomApi:
             position: Curtain position (0-100, 0=closed, 100=open)
             on: Turn curtain on/off (True=open, False=close)
         """
+        prop_name = 'FTB56PZT21ABS1.1_curtain_opening'
+        
         if on is not None:
             if on:
-                return self._set_device_prop(device_id, 'curtain_opening', '100')
+                return self._set_device_prop(device_id, prop_name, '100')
             else:
-                return self._set_device_prop(device_id, 'curtain_opening', '0')
+                return self._set_device_prop(device_id, prop_name, '0')
         
         if position is not None:
             position = max(0, min(100, position))
-            return self._set_device_prop(device_id, 'curtain_opening', str(position))
+            return self._set_device_prop(device_id, prop_name, str(position))
         
         return False

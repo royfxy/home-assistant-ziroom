@@ -33,11 +33,6 @@ async def async_setup_entry(
 class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
     """Ziroom light entity."""
 
-    _attr_supported_color_modes: set[ColorMode] = {ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP}
-    _attr_supported_features = LightEntityFeature(0)
-    _attr_min_mireds = 153
-    _attr_max_mireds = 370
-
     def __init__(self, device_id: str, data: dict, coordinator: ZiroomDataUpdateCoordinator) -> None:
         """Initialize the light."""
         super().__init__(coordinator)
@@ -46,6 +41,9 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
         self._attr_unique_id = f"ziroom_{device_id}"
         self._attr_name = data["name"]
         self._attr_has_entity_name = False
+        
+        self._attr_supported_color_modes: set[ColorMode] = {ColorMode.BRIGHTNESS}
+        self._attr_supported_features = LightEntityFeature(0)
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -101,7 +99,9 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
             brightness_percent = int(kwargs["brightness"]) * 100 // 255
         
         if "color_temp" in kwargs:
-            color_temp_k = int(1000000 / kwargs["color_temp"])
+            color_temp_mireds = kwargs["color_temp"]
+            if color_temp_mireds > 0:
+                color_temp_k = int(1000000 / color_temp_mireds)
         
         await self.hass.async_add_executor_job(
             self.coordinator.api.control_light,

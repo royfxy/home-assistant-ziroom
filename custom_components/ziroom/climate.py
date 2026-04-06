@@ -28,10 +28,10 @@ HA_HVAC_MODES = {
 }
 
 FAN_SPEEDS = {
-    0: "自动",
-    1: "低",
-    2: "中",
-    3: "高",
+    102: "自动",
+    40: "低",
+    60: "中",
+    80: "高",
 }
 
 async def async_setup_entry(
@@ -173,7 +173,7 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set fan mode."""
-        speed = next((k for k, v in FAN_SPEEDS.items() if v == fan_mode), 0)
+        speed = next((k for k, v in FAN_SPEEDS.items() if v == fan_mode), 102)
         on = self.hvac_mode != HVACMode.OFF
         temp = self._get_current_temp()
         mode = self._get_current_mode()
