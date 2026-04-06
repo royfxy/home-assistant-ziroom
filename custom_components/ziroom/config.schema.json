@@ -1,0 +1,41 @@
+{
+  "pluginAlias": "ZiroomHomebridgePlugin",
+  "pluginType": "platform",
+  "singular": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "required": true,
+        "default": "homebridge-plugin-ziroom",
+        "description": "The name of the plugin instance."
+      },
+      "account": {
+        "title": "Account",
+        "type": "string",
+        "required": false,
+        "description": "Your Ziroom account."
+      },
+      "password": {
+        "title": "Password",
+        "type": "string",
+        "required": false,
+        "description": "Your Ziroom password."
+      },
+      "token": {
+        "title": "Token",
+        "type": "string",
+        "required": false,
+        "description": "Your Ziroom token."
+      },
+      "hid": {
+        "title": "HID",
+        "type": "string",
+        "required": false,
+        "description": "Your Ziroom hid."
+      }
+    }
+  }
+}
