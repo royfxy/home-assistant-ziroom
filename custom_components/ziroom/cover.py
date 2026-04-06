@@ -32,12 +32,10 @@ async def async_setup_entry(
 class ZiroomCover(CoordinatorEntity[ZiroomDataUpdateCoordinator], CoverEntity):
     """Ziroom cover entity."""
 
-    _attr_has_entity_name = True
     _attr_supported_features = (
         CoverEntityFeature.OPEN
         | CoverEntityFeature.CLOSE
         | CoverEntityFeature.SET_POSITION
-        | CoverEntityFeature.STOP
     )
 
     def __init__(self, device_id: str, data: dict, coordinator: ZiroomDataUpdateCoordinator) -> None:
@@ -97,7 +95,6 @@ class ZiroomCover(CoordinatorEntity[ZiroomDataUpdateCoordinator], CoverEntity):
             None,
             True,
         )
-        await self.coordinator.async_request_refresh()
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
@@ -107,7 +104,6 @@ class ZiroomCover(CoordinatorEntity[ZiroomDataUpdateCoordinator], CoverEntity):
             None,
             False,
         )
-        await self.coordinator.async_request_refresh()
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Set the cover position."""
@@ -119,7 +115,6 @@ class ZiroomCover(CoordinatorEntity[ZiroomDataUpdateCoordinator], CoverEntity):
                 position,
                 None,
             )
-            await self.coordinator.async_request_refresh()
 
     async def async_stop_cover(self, **kwargs: Any) -> None:
         """Stop the cover."""
