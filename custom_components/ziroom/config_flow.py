@@ -10,25 +10,25 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 
-from .const import DOMAIN, CONF_USERNAME, CONF_PASSWORD
-from .ziroom_api import ZiroomApi
+from .const import DOMAIN, CONF_TOKEN
 
 _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_USERNAME): str,
-        vol.Required(CONF_PASSWORD): str,
+        vol.Required(CONF_TOKEN): str,
     }
 )
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
-    api = ZiroomApi()
-    token = await hass.async_add_executor_job(api.login, data[CONF_USERNAME], data[CONF_PASSWORD])
+    from .ziroom_api import ZiroomApi
+    
+    api = ZiroomApi(token=data[CONF_TOKEN])
+    token = await hass.async_add_executor_job(api.login)
     if not token:
         raise InvalidAuth
-    return {"title": "自如", "token": token}
+    return {"title": "自如"}
 
 class InvalidAuth(Exception):
     """Error to indicate invalid authentication."""
@@ -55,9 +55,7 @@ class ZiroomConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return self.async_create_entry(
                     title=info["title"],
                     data={
-                        CONF_USERNAME: user_input[CONF_USERNAME],
-                        CONF_PASSWORD: user_input[CONF_PASSWORD],
-                        "token": info["token"],
+                        CONF_TOKEN: user_input[CONF_TOKEN],
                     },
                 )
         return self.async_show_form(

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
+from typing import Dict, Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -13,7 +14,7 @@ from .ziroom_api import ZiroomApi, Device
 
 _LOGGER = logging.getLogger(__name__)
 
-class ZiroomDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Device]]):
+class ZiroomDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Dict[str, Any]]]):
     """Data update coordinator for Ziroom."""
 
     config_entry: ConfigEntry
@@ -26,10 +27,47 @@ class ZiroomDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Device]]):
             name=DOMAIN,
             update_interval=timedelta(seconds=30),
         )
-        self.api = ZiroomApi(entry.data["token"])
+        self.api = ZiroomApi(token=entry.data["token"])
         self.entry = entry
+        self._devices_raw: Dict[str, Device] = {}
+        
+    async def async_config_entry_first_refresh(self) -> None:
+        """Perform the first refresh and log in."""
+        await self.hass.async_add_executor_job(self.api.login)
+        await super().async_config_entry_first_refresh()
 
-    async def _async_update_data(self) -> dict[str, Device]:
+    async def _async_update_data(self) -> dict[str, Dict[str, Any]]:
         """Update data."""
         devices = await self.hass.async_add_executor_job(self.api.get_devices)
-        return {device.id: device for device in devices}
+        self._devices_raw = {device.id: device for device in devices}
+        
+        result: Dict[str, Dict[str, Any]] = {}
+        for device in devices:
+            try:
+                detail = await self.hass.async_add_executor_job(
+                    self.api.get_device_detail, device.id, False
+                )
+                result[device.id] = {
+                    "device": device,
+                    "detail": detail,
+                    "name": device.name,
+                    "type": device.type,
+                }
+            except Exception as e:
+                _LOGGER.error(f"Failed to get detail for {device.id}: {e}")
+                result[device.id] = {
+                    "device": device,
+                    "detail": None,
+                    "name": device.name,
+                    "type": device.type,
+                }
+        return result
+    
+    def get_device_prop(self, device_id: str, prop_name: str) -> Any:
+        """Get device property from state map."""
+        if device_id not in self.data:
+            return None
+        detail = self.data[device_id].get("detail")
+        if not detail or "devStateMap" not in detail:
+            return None
+        return detail["devStateMap"].get(prop_name)
