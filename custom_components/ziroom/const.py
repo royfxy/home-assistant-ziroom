@@ -1,5 +1,3 @@
 """ constants """
 DOMAIN = "ziroom"
-CONF_USERNAME = "username"
-CONF_PASSWORD = "password"
 CONF_TOKEN = "token"

@@ -16,24 +16,22 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import ZiroomDataUpdateCoordinator
-from .ziroom_api import Device
 
 _LOGGER = logging.getLogger(__name__)
 
 HA_HVAC_MODES = {
-    0: HVACMode.OFF,
+    0: HVACMode.HEAT,
     1: HVACMode.COOL,
-    2: HVACMode.HEAT,
-    3: HVACMode.FAN_ONLY,
-    4: HVACMode.DRY,
-    5: HVACMode.AUTO,
+    2: HVACMode.AUTO,
+    3: HVACMode.DRY,
+    4: HVACMode.FAN_ONLY,
 }
 
 FAN_SPEEDS = {
+    0: "自动",
     1: "低",
     2: "中",
     3: "高",
-    0: "自动",
 }
 
 async def async_setup_entry(
@@ -42,9 +40,9 @@ async def async_setup_entry(
     """Set up Ziroom climate from config entry."""
     coordinator: ZiroomDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
     entities = []
-    for device in coordinator.data.values():
-        if device.type == "02":
-            entities.append(ZiroomClimate(device, coordinator))
+    for device_id, data in coordinator.data.items():
+        if data["type"] == "conditioner02":
+            entities.append(ZiroomClimate(device_id, data, coordinator))
     async_add_entities(entities)
 
 class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntity):
@@ -58,101 +56,145 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
         | ClimateEntityFeature.TURN_OFF
     )
 
-    def __init__(self, device: Device, coordinator: ZiroomDataUpdateCoordinator) -> None:
+    def __init__(self, device_id: str, data: dict, coordinator: ZiroomDataUpdateCoordinator) -> None:
         """Initialize the climate."""
         super().__init__(coordinator)
-        self._device = device
-        self._attr_unique_id = f"ziroom_{device.id}"
-        self._attr_name = device.name
+        self._device_id = device_id
+        self._data = data
+        self._attr_unique_id = f"ziroom_{device_id}"
+        self._attr_name = data["name"]
         self._attr_temperature_unit = "°C"
         self._attr_min_temp = 16
         self._attr_max_temp = 30
         self._attr_target_temperature_step = 1
         self._attr_fan_modes = list(FAN_SPEEDS.values())
+        self._attr_hvac_modes = [HVACMode.OFF] + list(HA_HVAC_MODES.values())
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return device info."""
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device.id)},
-            name=self._device.name,
+            identifiers={(DOMAIN, self._device_id)},
+            name=self._data["name"],
             manufacturer="自如",
-            model=self._device.type,
+            model=self._data["type"],
         )
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return self._device_id in self.coordinator.data
 
     @property
     def current_temperature(self) -> float | None:
         """Return current temperature."""
-        return self._device.data.get("currentTemperature")
+        temp = self.coordinator.get_device_prop(self._device_id, "tem_in")
+        if temp:
+            return float(temp)
+        return None
 
     @property
     def target_temperature(self) -> float | None:
         """Return target temperature."""
-        return self._device.data.get("targetTemperature")
+        temp = self.coordinator.get_device_prop(self._device_id, "set_tem")
+        if temp:
+            return float(temp)
+        return None
 
     @property
     def hvac_mode(self) -> HVACMode:
         """Return hvac mode."""
-        if not self._device.data.get("on"):
+        on = self.coordinator.get_device_prop(self._device_id, "set_on_off")
+        if on != "1":
             return HVACMode.OFF
-        mode = self._device.data.get("mode", 0)
-        return HA_HVAC_MODES.get(mode, HVACMode.OFF)
-
-    @property
-    def hvac_modes(self) -> list[HVACMode]:
-        """Return all hvac modes."""
-        return list(HA_HVAC_MODES.values())
+        mode = self.coordinator.get_device_prop(self._device_id, "set_mode")
+        if mode:
+            return HA_HVAC_MODES.get(int(mode), HVACMode.AUTO)
+        return HVACMode.OFF
 
     @property
     def fan_mode(self) -> str | None:
         """Return fan mode."""
-        speed = self._device.data.get("windSpeed", 0)
-        return FAN_SPEEDS.get(speed, "自动")
+        speed = self.coordinator.get_device_prop(self._device_id, "set_wind_speed")
+        if speed:
+            return FAN_SPEEDS.get(int(speed), "自动")
+        return "自动"
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set target temperature."""
         temp = kwargs.get("temperature")
         if temp is not None:
+            on = self.hvac_mode != HVACMode.OFF
+            mode = self._get_current_mode()
+            speed = self._get_current_speed()
             await self.hass.async_add_executor_job(
                 self.coordinator.api.control_aircon,
-                self._device.id,
+                self._device_id,
                 int(temp),
-                self._device.data.get("mode", 1),
-                self._device.data.get("windSpeed", 1),
-                self._device.data.get("on", True),
+                mode,
+                speed,
+                on,
             )
-            self._device.data["targetTemperature"] = int(temp)
             await self.coordinator.async_request_refresh()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set hvac mode."""
         if hvac_mode == HVACMode.OFF:
             on = False
+            mode = 1
         else:
             on = True
-        mode = next(k for k, v in HA_HVAC_MODES.items() if v == hvac_mode)
+            mode = next((k for k, v in HA_HVAC_MODES.items() if v == hvac_mode), 1)
+        
+        temp = self._get_current_temp()
+        speed = self._get_current_speed()
+        
         await self.hass.async_add_executor_job(
             self.coordinator.api.control_aircon,
-            self._device.id,
-            self._device.data.get("targetTemperature", 25),
+            self._device_id,
+            temp,
             mode,
-            self._device.data.get("windSpeed", 1),
+            speed,
             on,
         )
-        self._device.data["on"] = on
-        self._device.data["mode"] = mode
         await self.coordinator.async_request_refresh()
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set fan mode."""
-        speed = next(k for k, v in FAN_SPEEDS.items() if v == fan_mode)
+        speed = next((k for k, v in FAN_SPEEDS.items() if v == fan_mode), 0)
+        on = self.hvac_mode != HVACMode.OFF
+        temp = self._get_current_temp()
+        mode = self._get_current_mode()
+        
         await self.hass.async_add_executor_job(
             self.coordinator.api.control_aircon,
-            self._device.id,
-            self._device.data.get("targetTemperature", 25),
-            self._device.data.get("mode", 1),
+            self._device_id,
+            temp,
+            mode,
             speed,
-            self._device.data.get("on", True),
+            on,
         )
-        self._device.data["windSpeed"] = speed
         await self.coordinator.async_request_refresh()
+
+    async def async_turn_on(self) -> None:
+        """Turn on."""
+        await self.async_set_hvac_mode(HVACMode.COOL)
+
+    async def async_turn_off(self) -> None:
+        """Turn off."""
+        await self.async_set_hvac_mode(HVACMode.OFF)
+
+    def _get_current_temp(self) -> int:
+        """Get current target temp."""
+        temp = self.coordinator.get_device_prop(self._device_id, "set_tem")
+        return int(temp) if temp else 25
+
+    def _get_current_mode(self) -> int:
+        """Get current mode."""
+        mode = self.coordinator.get_device_prop(self._device_id, "set_mode")
+        return int(mode) if mode else 1
+
+    def _get_current_speed(self) -> int:
+        """Get current speed."""
+        speed = self.coordinator.get_device_prop(self._device_id, "set_wind_speed")
+        return int(speed) if speed else 1
