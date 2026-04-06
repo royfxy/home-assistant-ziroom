@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant
 from .const import DOMAIN
 from .coordinator import ZiroomDataUpdateCoordinator
 
-PLATFORMS: list[Platform] = [Platform.CLIMATE, Platform.LIGHT, Platform.COVER]
+PLATFORMS: list[Platform] = [Platform.CLIMATE, Platform.LIGHT, Platform.COVER, Platform.SENSOR]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Ziroom from a config entry."""
