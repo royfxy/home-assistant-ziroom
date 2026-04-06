@@ -33,7 +33,6 @@ async def async_setup_entry(
 class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
     """Ziroom light entity."""
 
-    _attr_has_entity_name = True
     _attr_supported_color_modes: set[ColorMode] = {ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP}
     _attr_supported_features = LightEntityFeature(0)
     _attr_min_mireds = 153
@@ -102,7 +101,6 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
             brightness_percent,
             color_temp_k,
         )
-        await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off light."""
@@ -111,4 +109,3 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
             self._device_id,
             False,
         )
-        await self.coordinator.async_request_refresh()

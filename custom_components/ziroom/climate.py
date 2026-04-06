@@ -48,7 +48,6 @@ async def async_setup_entry(
 class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntity):
     """Ziroom climate entity."""
 
-    _attr_has_entity_name = True
     _attr_supported_features = (
         ClimateEntityFeature.TARGET_TEMPERATURE
         | ClimateEntityFeature.FAN_MODE
@@ -135,7 +134,6 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
                 speed,
                 on,
             )
-            await self.coordinator.async_request_refresh()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set hvac mode."""
@@ -157,7 +155,6 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
             speed,
             on,
         )
-        await self.coordinator.async_request_refresh()
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set fan mode."""
@@ -174,15 +171,38 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
             speed,
             on,
         )
-        await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self) -> None:
         """Turn on."""
-        await self.async_set_hvac_mode(HVACMode.COOL)
+        on = True
+        mode = self._get_current_mode()
+        temp = self._get_current_temp()
+        speed = self._get_current_speed()
+        
+        await self.hass.async_add_executor_job(
+            self.coordinator.api.control_aircon,
+            self._device_id,
+            temp,
+            mode,
+            speed,
+            on,
+        )
 
     async def async_turn_off(self) -> None:
         """Turn off."""
-        await self.async_set_hvac_mode(HVACMode.OFF)
+        on = False
+        mode = self._get_current_mode()
+        temp = self._get_current_temp()
+        speed = self._get_current_speed()
+        
+        await self.hass.async_add_executor_job(
+            self.coordinator.api.control_aircon,
+            self._device_id,
+            temp,
+            mode,
+            speed,
+            on,
+        )
 
     def _get_current_temp(self) -> int:
         """Get current target temp."""
