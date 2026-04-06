@@ -2,6 +2,7 @@
 import requests
 import json
 import uuid
+import time
 from typing import List, Optional, Dict, Any
 from Crypto.Cipher import DES
 import base64
@@ -311,6 +312,30 @@ class ZiroomApi:
         except Exception:
             return None
     
+    def _wait_for_state_update(self, device_id: str, prop_suffix: str, expected_value: str, timeout: float = 10.0, poll_interval: float = 0.5) -> bool:
+        """Wait for device state to update.
+        
+        Args:
+            device_id: Device ID
+            prop_suffix: Property suffix to check
+            expected_value: Expected value
+            timeout: Maximum time to wait in seconds
+            poll_interval: Polling interval in seconds
+            
+        Returns:
+            True if state updated within timeout, False otherwise
+        """
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            try:
+                current_value = self.get_device_prop(device_id, prop_suffix)
+                if current_value == expected_value:
+                    return True
+            except Exception:
+                pass
+            time.sleep(poll_interval)
+        return False
+    
     def control_aircon(self, device_id: str, temperature: int = None, mode: int = None, speed: int = None, on: bool = None) -> bool:
         """Control air conditioner"""
         if on is not None:
@@ -337,7 +362,7 @@ class ZiroomApi:
         
         return True
     
-    def control_light(self, device_id: str, on: bool = None, brightness: int = None, color_temp: int = None) -> bool:
+    def control_light(self, device_id: str, on: bool = None, brightness: int = None, color_temp: int = None, wait_for_update: bool = True) -> bool:
         """Control light
         
         Args:
@@ -345,46 +370,68 @@ class ZiroomApi:
             on: Turn light on/off
             brightness: Brightness level (0-100)
             color_temp: Color temperature (typically 2700-6500K)
+            wait_for_update: Whether to wait for state update before returning
         """
+        wait_props = []
+        
         if on is not None:
             success = self._set_device_prop(device_id, 'set_on_off', '1' if on else '0')
             if not success:
                 return False
+            wait_props.append(('on_off', '1' if on else '0'))
             if not on:
+                if wait_for_update:
+                    for prop, expected in wait_props:
+                        self._wait_for_state_update(device_id, prop, expected)
                 return True
         
         if brightness is not None:
             success = self._set_device_prop(device_id, 'set_brightness', str(brightness))
             if not success:
                 return False
+            wait_props.append(('light_state', str(brightness)))
         
         if color_temp is not None:
             success = self._set_device_prop(device_id, 'set_color_tem', str(color_temp))
             if not success:
                 return False
+            wait_props.append(('temperature', str(color_temp)))
+        
+        if wait_for_update and wait_props:
+            for prop, expected in wait_props:
+                self._wait_for_state_update(device_id, prop, expected)
         
         return True
     
-    def control_curtain(self, device_id: str, position: int = None, on: bool = None) -> bool:
+    def control_curtain(self, device_id: str, position: int = None, on: bool = None, wait_for_update: bool = True) -> bool:
         """Control curtain
         
         Args:
             device_id: Curtain device ID
             position: Curtain position (0-100, 0=closed, 100=open)
             on: Turn curtain on/off (True=open, False=close)
+            wait_for_update: Whether to wait for state update before returning
         """
         prop_name = self._find_prop_name(device_id, 'curtain_opening', use_group_info=True)
         if not prop_name:
             return False
         
+        expected_value = None
         if on is not None:
             if on:
-                return self._set_device_prop(device_id, prop_name, '100')
+                expected_value = '100'
+                success = self._set_device_prop(device_id, prop_name, '100')
             else:
-                return self._set_device_prop(device_id, prop_name, '0')
-        
-        if position is not None:
+                expected_value = '0'
+                success = self._set_device_prop(device_id, prop_name, '0')
+        elif position is not None:
             position = max(0, min(100, position))
-            return self._set_device_prop(device_id, prop_name, str(position))
+            expected_value = str(position)
+            success = self._set_device_prop(device_id, prop_name, str(position))
+        else:
+            return False
         
-        return False
+        if success and wait_for_update and expected_value:
+            self._wait_for_state_update(device_id, 'curtain_opening', expected_value)
+        
+        return success
