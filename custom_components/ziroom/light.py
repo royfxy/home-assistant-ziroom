@@ -44,6 +44,8 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
         
         self._attr_supported_color_modes: set[ColorMode] = {ColorMode.BRIGHTNESS}
         self._attr_supported_features = LightEntityFeature(0)
+        self._attr_min_color_temp_kelvin = 2700
+        self._attr_max_color_temp_kelvin = 6500
 
     @property
     def device_info(self) -> DeviceInfo:
