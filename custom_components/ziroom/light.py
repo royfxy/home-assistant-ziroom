@@ -42,10 +42,15 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
         self._attr_name = data["name"]
         self._attr_has_entity_name = False
         
-        self._attr_supported_color_modes: set[ColorMode] = {ColorMode.BRIGHTNESS}
+        self._attr_supported_color_modes: set[ColorMode] = {ColorMode.COLOR_TEMP}
         self._attr_supported_features = LightEntityFeature(0)
         self._attr_min_color_temp_kelvin = 2700
         self._attr_max_color_temp_kelvin = 6500
+
+    @property
+    def color_mode(self) -> ColorMode:
+        """Return current color mode."""
+        return ColorMode.COLOR_TEMP
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -80,15 +85,15 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
         return None
 
     @property
-    def color_temp(self) -> int | None:
-        """Return color temperature in mireds."""
+    def color_temp_kelvin(self) -> int | None:
+        """Return color temperature in kelvin."""
         temp_k = self.coordinator.get_device_prop(self._device_id, "ZH-D01002021_temperature")
         if temp_k:
             try:
                 temp_k_int = int(temp_k)
                 if temp_k_int > 0:
-                    return int(1000000 / temp_k_int)
-            except (ValueError, TypeError, ZeroDivisionError):
+                    return temp_k_int
+            except (ValueError, TypeError):
                 pass
         return None
 
@@ -100,10 +105,8 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
         if "brightness" in kwargs:
             brightness_percent = int(kwargs["brightness"]) * 100 // 255
         
-        if "color_temp" in kwargs:
-            color_temp_mireds = kwargs["color_temp"]
-            if color_temp_mireds > 0:
-                color_temp_k = int(1000000 / color_temp_mireds)
+        if "color_temp_kelvin" in kwargs:
+            color_temp_k = kwargs["color_temp_kelvin"]
         
         await self.hass.async_add_executor_job(
             self.coordinator.api.control_light,
