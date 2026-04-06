@@ -44,20 +44,6 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
         
         self._attr_supported_color_modes: set[ColorMode] = {ColorMode.BRIGHTNESS}
         self._attr_supported_features = LightEntityFeature(0)
-        
-        if self._has_color_temp():
-            self._attr_supported_color_modes.add(ColorMode.COLOR_TEMP)
-            self._attr_min_color_temp_kelvin = 2700
-            self._attr_max_color_temp_kelvin = 6500
-
-    def _has_color_temp(self) -> bool:
-        """Check if light has color temperature capability."""
-        detail = self.coordinator.data.get(self._device_id, {}).get("detail", {})
-        dev_state_map = detail.get("devStateMap", {})
-        return any(
-            key.endswith("_temperature") 
-            for key in dev_state_map.keys()
-        )
 
     @property
     def device_info(self) -> DeviceInfo:
