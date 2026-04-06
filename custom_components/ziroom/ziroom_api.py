@@ -277,6 +277,40 @@ class ZiroomApi:
         except Exception:
             return None
     
+    def _find_prop_name(self, device_id: str, prop_suffix: str, use_group_info: bool = False) -> Optional[str]:
+        """Find full property name by suffix.
+        
+        Args:
+            device_id: Device ID
+            prop_suffix: Property suffix to search for
+            use_group_info: If True, search in groupInfoMap instead of devStateMap
+        """
+        try:
+            device_detail = self.get_device_detail(device_id, force_refresh=False)
+            
+            if use_group_info:
+                group_info_map = device_detail.get('groupInfoMap', {})
+                
+                if prop_suffix in group_info_map:
+                    return prop_suffix
+                
+                for key in group_info_map.keys():
+                    if key.endswith(prop_suffix):
+                        return key
+            else:
+                dev_state_map = device_detail.get('devStateMap', {})
+                
+                if prop_suffix in dev_state_map:
+                    return prop_suffix
+                
+                for key in dev_state_map.keys():
+                    if key.endswith(prop_suffix):
+                        return key
+            
+            return None
+        except Exception:
+            return None
+    
     def control_aircon(self, device_id: str, temperature: int = None, mode: int = None, speed: int = None, on: bool = None) -> bool:
         """Control air conditioner"""
         if on is not None:
@@ -339,7 +373,9 @@ class ZiroomApi:
             position: Curtain position (0-100, 0=closed, 100=open)
             on: Turn curtain on/off (True=open, False=close)
         """
-        prop_name = 'FTB56PZT21ABS1.1_curtain_opening'
+        prop_name = self._find_prop_name(device_id, 'curtain_opening', use_group_info=True)
+        if not prop_name:
+            return False
         
         if on is not None:
             if on:
