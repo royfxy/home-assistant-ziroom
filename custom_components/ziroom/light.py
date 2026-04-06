@@ -73,15 +73,23 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
         """Return brightness 0-255."""
         brightness = self.coordinator.get_device_prop(self._device_id, "set_brightness")
         if brightness:
-            return int(brightness) * 255 // 100
+            try:
+                return int(brightness) * 255 // 100
+            except (ValueError, TypeError):
+                pass
         return None
 
     @property
     def color_temp(self) -> int | None:
         """Return color temperature in mireds."""
         temp_k = self.coordinator.get_device_prop(self._device_id, "set_color_tem")
-        if temp_k and int(temp_k) > 0:
-            return int(1000000 / int(temp_k))
+        if temp_k:
+            try:
+                temp_k_int = int(temp_k)
+                if temp_k_int > 0:
+                    return int(1000000 / temp_k_int)
+            except (ValueError, TypeError, ZeroDivisionError):
+                pass
         return None
 
     async def async_turn_on(self, **kwargs: Any) -> None:

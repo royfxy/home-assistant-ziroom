@@ -25,7 +25,7 @@ class ZiroomDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Dict[str, Any]
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(seconds=30),
+            update_interval=timedelta(seconds=10),
         )
         self.api = ZiroomApi(token=entry.data["token"])
         self.entry = entry
