@@ -257,11 +257,19 @@ class ZiroomApi:
             return False
     
     def get_device_prop(self, device_id: str, prop: str) -> Optional[str]:
-        """Get device property value"""
+        """Get device property value, supporting both exact and prefixed keys"""
         try:
             device_detail = self.get_device_detail(device_id, force_refresh=False)
             dev_state_map = device_detail.get('devStateMap', {})
-            return dev_state_map.get(prop)
+            
+            if prop in dev_state_map:
+                return dev_state_map[prop]
+            
+            for key, value in dev_state_map.items():
+                if key.endswith(f'_{prop}'):
+                    return value
+            
+            return None
         except Exception:
             return None
     
