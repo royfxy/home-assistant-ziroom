@@ -70,13 +70,13 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
     @property
     def is_on(self) -> bool:
         """Return true if light is on."""
-        on = self.coordinator.get_device_prop(self._device_id, "ZH-D01002021_on_off")
+        on = self.coordinator.get_device_prop(self._device_id, "on_off")
         return on == "1"
 
     @property
     def brightness(self) -> int | None:
         """Return brightness 0-255."""
-        brightness = self.coordinator.get_device_prop(self._device_id, "ZH-D01002021_light_state")
+        brightness = self.coordinator.get_device_prop(self._device_id, "light_state")
         if brightness:
             try:
                 return int(brightness) * 255 // 100
@@ -87,7 +87,7 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
     @property
     def color_temp_kelvin(self) -> int | None:
         """Return color temperature in kelvin."""
-        temp_k = self.coordinator.get_device_prop(self._device_id, "ZH-D01002021_temperature")
+        temp_k = self.coordinator.get_device_prop(self._device_id, "temperature")
         if temp_k:
             try:
                 temp_k_int = int(temp_k)

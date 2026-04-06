@@ -64,10 +64,23 @@ class ZiroomDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Dict[str, Any]
         return result
     
     def get_device_prop(self, device_id: str, prop_name: str) -> Any:
-        """Get device property from state map."""
+        """Get device property from state map.
+        
+        If prop_name is a suffix (e.g., "on_off"), it will search for any key
+        ending with that suffix. If prop_name is a full key, it will match exactly.
+        """
         if device_id not in self.data:
             return None
         detail = self.data[device_id].get("detail")
         if not detail or "devStateMap" not in detail:
             return None
-        return detail["devStateMap"].get(prop_name)
+        dev_state_map = detail["devStateMap"]
+        
+        if prop_name in dev_state_map:
+            return dev_state_map.get(prop_name)
+        
+        for key in dev_state_map.keys():
+            if key.endswith(prop_name):
+                return dev_state_map.get(key)
+        
+        return None
