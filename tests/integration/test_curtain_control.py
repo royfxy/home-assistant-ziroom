@@ -41,7 +41,11 @@ def list_curtains(api):
             
             opening = api.get_device_prop(device.id, 'curtain_opening')
             if opening:
-                print(f"    Position: {opening}%")
+                position = int(opening)
+                status = "开" if position > 0 else "关"
+                print(f"    Position: {position}% ({status})")
+            else:
+                print(f"    Position: 未知")
     
     print(f"\nFound {len(curtains)} curtain(s)")
     return curtains
