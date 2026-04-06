@@ -33,11 +33,6 @@ async def async_setup_entry(
 class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
     """Ziroom light entity."""
 
-    _attr_supported_color_modes: set[ColorMode] = {ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP}
-    _attr_supported_features = LightEntityFeature(0)
-    _attr_min_mireds = 153
-    _attr_max_mireds = 370
-
     def __init__(self, device_id: str, data: dict, coordinator: ZiroomDataUpdateCoordinator) -> None:
         """Initialize the light."""
         super().__init__(coordinator)
@@ -46,6 +41,11 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
         self._attr_unique_id = f"ziroom_{device_id}"
         self._attr_name = data["name"]
         self._attr_has_entity_name = False
+        
+        self._attr_supported_color_modes: set[ColorMode] = {ColorMode.BRIGHTNESS}
+        self._attr_supported_features = LightEntityFeature(0)
+        self._attr_min_color_temp_kelvin = 2700
+        self._attr_max_color_temp_kelvin = 6500
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -65,13 +65,13 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
     @property
     def is_on(self) -> bool:
         """Return true if light is on."""
-        on = self.coordinator.get_device_prop(self._device_id, "set_on_off")
+        on = self.coordinator.get_device_prop(self._device_id, "ZH-D01002021_on_off")
         return on == "1"
 
     @property
     def brightness(self) -> int | None:
         """Return brightness 0-255."""
-        brightness = self.coordinator.get_device_prop(self._device_id, "set_brightness")
+        brightness = self.coordinator.get_device_prop(self._device_id, "ZH-D01002021_light_state")
         if brightness:
             try:
                 return int(brightness) * 255 // 100
@@ -82,7 +82,7 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
     @property
     def color_temp(self) -> int | None:
         """Return color temperature in mireds."""
-        temp_k = self.coordinator.get_device_prop(self._device_id, "set_color_tem")
+        temp_k = self.coordinator.get_device_prop(self._device_id, "ZH-D01002021_temperature")
         if temp_k:
             try:
                 temp_k_int = int(temp_k)
@@ -101,7 +101,9 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
             brightness_percent = int(kwargs["brightness"]) * 100 // 255
         
         if "color_temp" in kwargs:
-            color_temp_k = int(1000000 / kwargs["color_temp"])
+            color_temp_mireds = kwargs["color_temp"]
+            if color_temp_mireds > 0:
+                color_temp_k = int(1000000 / color_temp_mireds)
         
         await self.hass.async_add_executor_job(
             self.coordinator.api.control_light,

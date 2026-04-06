@@ -28,10 +28,10 @@ HA_HVAC_MODES = {
 }
 
 FAN_SPEEDS = {
-    0: "自动",
-    1: "低",
-    2: "中",
-    3: "高",
+    102: "自动",
+    40: "低",
+    60: "中",
+    80: "高",
 }
 
 async def async_setup_entry(
@@ -88,7 +88,7 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
     @property
     def current_temperature(self) -> float | None:
         """Return current temperature."""
-        temp = self.coordinator.get_device_prop(self._device_id, "tem_in")
+        temp = self.coordinator.get_device_prop(self._device_id, "conditioner_indoortemp")
         if temp:
             try:
                 return float(temp)
@@ -99,7 +99,7 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
     @property
     def target_temperature(self) -> float | None:
         """Return target temperature."""
-        temp = self.coordinator.get_device_prop(self._device_id, "set_tem")
+        temp = self.coordinator.get_device_prop(self._device_id, "conditioner_temper")
         if temp:
             try:
                 return float(temp)
@@ -110,10 +110,10 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
     @property
     def hvac_mode(self) -> HVACMode:
         """Return hvac mode."""
-        on = self.coordinator.get_device_prop(self._device_id, "set_on_off")
+        on = self.coordinator.get_device_prop(self._device_id, "conditioner_powerstate")
         if on is None or on != "1":
             return HVACMode.OFF
-        mode = self.coordinator.get_device_prop(self._device_id, "set_mode")
+        mode = self.coordinator.get_device_prop(self._device_id, "conditioner_model")
         if mode:
             try:
                 return HA_HVAC_MODES.get(int(mode), HVACMode.AUTO)
@@ -124,7 +124,7 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
     @property
     def fan_mode(self) -> str | None:
         """Return fan mode."""
-        speed = self.coordinator.get_device_prop(self._device_id, "set_wind_speed")
+        speed = self.coordinator.get_device_prop(self._device_id, "conditioner_windspeed")
         if speed:
             try:
                 return FAN_SPEEDS.get(int(speed), "自动")
@@ -173,7 +173,7 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set fan mode."""
-        speed = next((k for k, v in FAN_SPEEDS.items() if v == fan_mode), 0)
+        speed = next((k for k, v in FAN_SPEEDS.items() if v == fan_mode), 102)
         on = self.hvac_mode != HVACMode.OFF
         temp = self._get_current_temp()
         mode = self._get_current_mode()
@@ -224,15 +224,15 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
 
     def _get_current_temp(self) -> int:
         """Get current target temp."""
-        temp = self.coordinator.get_device_prop(self._device_id, "set_tem")
+        temp = self.coordinator.get_device_prop(self._device_id, "conditioner_temper")
         return int(temp) if temp else 25
 
     def _get_current_mode(self) -> int:
         """Get current mode."""
-        mode = self.coordinator.get_device_prop(self._device_id, "set_mode")
+        mode = self.coordinator.get_device_prop(self._device_id, "conditioner_model")
         return int(mode) if mode else 1
 
     def _get_current_speed(self) -> int:
         """Get current speed."""
-        speed = self.coordinator.get_device_prop(self._device_id, "set_wind_speed")
-        return int(speed) if speed else 1
+        speed = self.coordinator.get_device_prop(self._device_id, "conditioner_windspeed")
+        return int(speed) if speed else 102

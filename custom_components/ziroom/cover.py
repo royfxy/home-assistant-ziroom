@@ -65,7 +65,7 @@ class ZiroomCover(CoordinatorEntity[ZiroomDataUpdateCoordinator], CoverEntity):
     @property
     def current_cover_position(self) -> int | None:
         """Return current position (0-100, 0=closed, 100=open)."""
-        position = self.coordinator.get_device_prop(self._device_id, "curtain_opening")
+        position = self.coordinator.get_device_prop(self._device_id, "FTB56PZT21ABS1.1_curtain_opening")
         if position:
             try:
                 return int(position)
