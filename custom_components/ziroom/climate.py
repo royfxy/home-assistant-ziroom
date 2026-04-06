@@ -136,16 +136,13 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
         """Set target temperature."""
         temp = kwargs.get("temperature")
         if temp is not None:
-            on = self.hvac_mode != HVACMode.OFF
-            mode = self._get_current_mode()
-            speed = self._get_current_speed()
             await self.hass.async_add_executor_job(
                 self.coordinator.api.control_aircon,
                 self._device_id,
                 int(temp),
-                mode,
-                speed,
-                on,
+                None,
+                None,
+                None,
             )
             await self.coordinator.async_request_refresh()
 
@@ -153,72 +150,64 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
         """Set hvac mode."""
         if hvac_mode == HVACMode.OFF:
             on = False
-            mode = 1
         else:
             on = True
             mode = next((k for k, v in HA_HVAC_MODES.items() if v == hvac_mode), 1)
         
-        temp = self._get_current_temp()
-        speed = self._get_current_speed()
-        
-        await self.hass.async_add_executor_job(
-            self.coordinator.api.control_aircon,
-            self._device_id,
-            temp,
-            mode,
-            speed,
-            on,
-        )
+        if hvac_mode == HVACMode.OFF:
+            await self.hass.async_add_executor_job(
+                self.coordinator.api.control_aircon,
+                self._device_id,
+                None,
+                None,
+                None,
+                on,
+            )
+        else:
+            await self.hass.async_add_executor_job(
+                self.coordinator.api.control_aircon,
+                self._device_id,
+                None,
+                mode,
+                None,
+                on,
+            )
         await self.coordinator.async_request_refresh()
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set fan mode."""
         speed = next((k for k, v in FAN_SPEEDS.items() if v == fan_mode), 102)
-        on = self.hvac_mode != HVACMode.OFF
-        temp = self._get_current_temp()
-        mode = self._get_current_mode()
-        
         await self.hass.async_add_executor_job(
             self.coordinator.api.control_aircon,
             self._device_id,
-            temp,
-            mode,
+            None,
+            None,
             speed,
-            on,
+            None,
         )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self) -> None:
         """Turn on."""
-        on = True
-        mode = self._get_current_mode()
-        temp = self._get_current_temp()
-        speed = self._get_current_speed()
-        
         await self.hass.async_add_executor_job(
             self.coordinator.api.control_aircon,
             self._device_id,
-            temp,
-            mode,
-            speed,
-            on,
+            None,
+            None,
+            None,
+            True,
         )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self) -> None:
         """Turn off."""
-        on = False
-        mode = self._get_current_mode()
-        temp = self._get_current_temp()
-        speed = self._get_current_speed()
-        
         await self.hass.async_add_executor_job(
             self.coordinator.api.control_aircon,
             self._device_id,
-            temp,
-            mode,
-            speed,
-            on,
+            None,
+            None,
+            None,
+            False,
         )
         await self.coordinator.async_request_refresh()
 

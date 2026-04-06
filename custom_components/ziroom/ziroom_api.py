@@ -336,29 +336,51 @@ class ZiroomApi:
             time.sleep(poll_interval)
         return False
     
-    def control_aircon(self, device_id: str, temperature: int = None, mode: int = None, speed: int = None, on: bool = None) -> bool:
-        """Control air conditioner"""
+    def control_aircon(self, device_id: str, temperature: int = None, mode: int = None, speed: int = None, on: bool = None, wait_for_update: bool = True) -> bool:
+        """Control air conditioner
+        
+        Args:
+            device_id: Air conditioner device ID
+            temperature: Target temperature
+            mode: Operation mode
+            speed: Wind speed
+            on: Turn on/off
+            wait_for_update: Whether to wait for state update before returning
+        """
+        wait_props = []
+        
         if on is not None:
             success = self._set_device_prop(device_id, 'set_on_off', '1' if on else '0')
             if not success:
                 return False
+            wait_props.append(('conditioner_powerstate', '1' if on else '0'))
             if not on:
+                if wait_for_update:
+                    for prop, expected in wait_props:
+                        self._wait_for_state_update(device_id, prop, expected)
                 return True
+        else:
+            if temperature is not None:
+                success = self._set_device_prop(device_id, 'set_tem', str(temperature))
+                if not success:
+                    return False
+                wait_props.append(('conditioner_temper', str(temperature)))
+            
+            if mode is not None:
+                success = self._set_device_prop(device_id, 'set_mode', str(mode))
+                if not success:
+                    return False
+                wait_props.append(('conditioner_model', str(mode)))
+            
+            if speed is not None:
+                success = self._set_device_prop(device_id, 'set_wind_speed', str(speed))
+                if not success:
+                    return False
+                wait_props.append(('conditioner_windspeed', str(speed)))
         
-        if temperature is not None:
-            success = self._set_device_prop(device_id, 'set_tem', str(temperature))
-            if not success:
-                return False
-        
-        if mode is not None:
-            success = self._set_device_prop(device_id, 'set_mode', str(mode))
-            if not success:
-                return False
-        
-        if speed is not None:
-            success = self._set_device_prop(device_id, 'set_wind_speed', str(speed))
-            if not success:
-                return False
+        if wait_for_update and wait_props:
+            for prop, expected in wait_props:
+                self._wait_for_state_update(device_id, prop, expected)
         
         return True
     
