@@ -1,0 +1,11 @@
+{
+  "domain": "ziroom",
+  "name": "自如 Ziroom",
+  "codeowners": ["@xingyuff"],
+  "config_flow": true,
+  "documentation": "https://github.com/xingyuff/home-assistant-ziroom",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/xingyuff/home-assistant-ziroom/issues",
+  "requirements": ["pydes>=2.0.1", "requests>=2.31.0"],
+  "version": "0.1.0"
+}
