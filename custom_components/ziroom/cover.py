@@ -45,6 +45,7 @@ class ZiroomCover(CoordinatorEntity[ZiroomDataUpdateCoordinator], CoverEntity):
         self._data = data
         self._attr_unique_id = f"ziroom_{device_id}"
         self._attr_name = data["name"]
+        self._attr_has_entity_name = False
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -95,6 +96,7 @@ class ZiroomCover(CoordinatorEntity[ZiroomDataUpdateCoordinator], CoverEntity):
             None,
             True,
         )
+        await self.coordinator.async_request_refresh()
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
@@ -104,6 +106,7 @@ class ZiroomCover(CoordinatorEntity[ZiroomDataUpdateCoordinator], CoverEntity):
             None,
             False,
         )
+        await self.coordinator.async_request_refresh()
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Set the cover position."""
@@ -115,6 +118,7 @@ class ZiroomCover(CoordinatorEntity[ZiroomDataUpdateCoordinator], CoverEntity):
                 position,
                 None,
             )
+            await self.coordinator.async_request_refresh()
 
     async def async_stop_cover(self, **kwargs: Any) -> None:
         """Stop the cover."""

@@ -45,6 +45,7 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
         self._data = data
         self._attr_unique_id = f"ziroom_{device_id}"
         self._attr_name = data["name"]
+        self._attr_has_entity_name = False
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -101,6 +102,7 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
             brightness_percent,
             color_temp_k,
         )
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off light."""
@@ -109,3 +111,4 @@ class ZiroomLight(CoordinatorEntity[ZiroomDataUpdateCoordinator], LightEntity):
             self._device_id,
             False,
         )
+        await self.coordinator.async_request_refresh()

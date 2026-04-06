@@ -45,7 +45,7 @@ class ZiroomDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Dict[str, Any]
         for device in devices:
             try:
                 detail = await self.hass.async_add_executor_job(
-                    self.api.get_device_detail, device.id, False
+                    self.api.get_device_detail, device.id, True
                 )
                 result[device.id] = {
                     "device": device,

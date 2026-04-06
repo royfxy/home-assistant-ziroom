@@ -68,6 +68,7 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
         self._attr_target_temperature_step = 1
         self._attr_fan_modes = list(FAN_SPEEDS.values())
         self._attr_hvac_modes = [HVACMode.OFF] + list(HA_HVAC_MODES.values())
+        self._attr_has_entity_name = False
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -134,6 +135,7 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
                 speed,
                 on,
             )
+            await self.coordinator.async_request_refresh()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set hvac mode."""
@@ -155,6 +157,7 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
             speed,
             on,
         )
+        await self.coordinator.async_request_refresh()
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set fan mode."""
@@ -171,6 +174,7 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
             speed,
             on,
         )
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self) -> None:
         """Turn on."""
@@ -187,6 +191,7 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
             speed,
             on,
         )
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self) -> None:
         """Turn off."""
@@ -203,6 +208,7 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
             speed,
             on,
         )
+        await self.coordinator.async_request_refresh()
 
     def _get_current_temp(self) -> int:
         """Get current target temp."""
