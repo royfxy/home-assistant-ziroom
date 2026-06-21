@@ -41,6 +41,12 @@
 4. 输入你的 Token
 5. 点击「提交」
 
+### 更新 Token
+
+自如 Token 失效后，Home Assistant 会将集成标记为需要重新认证。你可以在「设置」→「设备与服务」里打开「自如 Ziroom」，按提示输入新的 Token。
+
+如果 Token 尚未失效但你想提前更换，也可以在该集成的「配置」入口中粘贴新的 Token。提交后集成会自动重新加载，无需重启 Home Assistant。
+
 ## 使用
 
 添加集成后，你的设备会自动出现在 Home Assistant 中：
