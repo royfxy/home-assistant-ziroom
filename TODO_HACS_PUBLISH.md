@@ -24,6 +24,7 @@ Goal: publish `royfxy/home-assistant-ziroom` to the default HACS integration dir
   - `smart-home`
 - [ ] Confirm README includes install, configuration, supported devices, and token update instructions.
 - [ ] Add a HACS "My" link to the README after the repository is ready.
+- [x] Remove unsupported keys from `hacs.json`.
 
 ## 3. HACS And Home Assistant Validation
 
@@ -36,7 +37,7 @@ Goal: publish `royfxy/home-assistant-ziroom` to the default HACS integration dir
 
 ## 4. Brands
 
-- [ ] Prepare brand assets for the `ziroom` domain.
+- [x] Prepare local brand assets for the `ziroom` domain.
 - [ ] Submit a PR to `home-assistant/brands` for `custom_integrations/ziroom`.
 - [ ] Wait for the brands PR to merge, or confirm HACS review accepts the current brand state.
 
