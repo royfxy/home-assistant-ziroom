@@ -43,8 +43,8 @@ Goal: publish `royfxy/home-assistant-ziroom` to the default HACS integration dir
 
 ## 5. GitHub Release
 
-- [ ] Create a semver tag, for example `v1.0.1`.
-- [ ] Publish a GitHub Release for that tag. A tag alone is not enough for HACS release version discovery.
+- [x] Create a semver tag, for example `v1.0.1`.
+- [x] Publish a GitHub Release for that tag. A tag alone is not enough for HACS release version discovery.
 - [ ] Verify HACS can see the released version when the repo is installed as a custom repository.
 - [ ] Restart Home Assistant and verify the installed release works.
 
