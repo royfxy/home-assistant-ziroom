@@ -17,6 +17,10 @@ class Device:
         self.data = data
 
 
+class ZiroomAuthError(Exception):
+    """Error to indicate Ziroom authentication failed."""
+
+
 class ZiroomApi:
     """Ziroom API Client"""
     SECRET_KEY = b'vpRZ1kmU'
@@ -76,12 +80,14 @@ class ZiroomApi:
             The token if valid
         """
         if not self.token:
-            raise Exception("Please configure token manually.")
+            raise ZiroomAuthError("Please configure token manually.")
         
         payload = self._get_jwt_payload()
         if payload:
             self.uid = payload.get('uid')
             self._token_expired_at = payload.get('exp', float('inf')) * 1000
+            if self._token_expired_at <= time.time() * 1000:
+                raise ZiroomAuthError("Token expired, please re-login")
         
         return self.token
     
@@ -123,7 +129,7 @@ class ZiroomApi:
         if resp_data.get('code') == '200':
             return resp_data.get('data')
         elif resp_data.get('code') == '40005':
-            raise Exception("Token expired, please re-login")
+            raise ZiroomAuthError("Token expired, please re-login")
         else:
             raise Exception(f"[{path}] {resp_data.get('code')}: {resp_data.get('message')}")
     
@@ -198,6 +204,8 @@ class ZiroomApi:
             if device_id in self._device_details_cache:
                 del self._device_details_cache[device_id]
             return True
+        except ZiroomAuthError:
+            raise
         except Exception as e:
             print(f"Set device state error: {e}")
             return False
@@ -252,7 +260,8 @@ class ZiroomApi:
             else:
                 print(f"Unsupported group type: {group_type}")
                 return False
-        
+        except ZiroomAuthError:
+            raise
         except Exception as e:
             print(f"Set device prop error: {e}")
             return False

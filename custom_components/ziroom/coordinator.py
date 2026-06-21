@@ -7,10 +7,11 @@ from typing import Dict, Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import DOMAIN
-from .ziroom_api import ZiroomApi, Device
+from .ziroom_api import ZiroomApi, Device, ZiroomAuthError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ class ZiroomDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Dict[str, Any]
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(seconds=5),
+            update_interval=timedelta(seconds=10),
         )
         self.api = ZiroomApi(token=entry.data["token"])
         self.entry = entry
@@ -33,12 +34,19 @@ class ZiroomDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Dict[str, Any]
         
     async def async_config_entry_first_refresh(self) -> None:
         """Perform the first refresh and log in."""
-        await self.hass.async_add_executor_job(self.api.login)
+        try:
+            await self.hass.async_add_executor_job(self.api.login)
+        except ZiroomAuthError as err:
+            raise ConfigEntryAuthFailed("Ziroom token is invalid") from err
         await super().async_config_entry_first_refresh()
 
     async def _async_update_data(self) -> dict[str, Dict[str, Any]]:
         """Update data."""
-        devices = await self.hass.async_add_executor_job(self.api.get_devices)
+        try:
+            devices = await self.hass.async_add_executor_job(self.api.get_devices)
+        except ZiroomAuthError as err:
+            raise ConfigEntryAuthFailed("Ziroom token expired") from err
+
         self._devices_raw = {device.id: device for device in devices}
         
         result: Dict[str, Dict[str, Any]] = {}
@@ -53,6 +61,8 @@ class ZiroomDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Dict[str, Any]
                     "name": device.name,
                     "type": device.type,
                 }
+            except ZiroomAuthError as err:
+                raise ConfigEntryAuthFailed("Ziroom token expired") from err
             except Exception as e:
                 _LOGGER.error(f"Failed to get detail for {device.id}: {e}")
                 result[device.id] = {
