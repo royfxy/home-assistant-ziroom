@@ -8,7 +8,7 @@ from typing import Dict, Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import DOMAIN
 from .ziroom_api import ZiroomApi, Device, ZiroomAuthError
@@ -46,6 +46,8 @@ class ZiroomDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Dict[str, Any]
             devices = await self.hass.async_add_executor_job(self.api.get_devices)
         except ZiroomAuthError as err:
             raise ConfigEntryAuthFailed("Ziroom token expired") from err
+        except Exception as err:
+            raise UpdateFailed(f"Failed to fetch Ziroom devices: {err}") from err
 
         self._devices_raw = {device.id: device for device in devices}
         

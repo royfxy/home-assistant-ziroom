@@ -1,4 +1,6 @@
 """Ziroom API Client"""
+import logging
+
 import requests
 import json
 import uuid
@@ -6,6 +8,10 @@ import time
 from typing import List, Optional, Dict, Any
 from Crypto.Cipher import DES
 import base64
+
+
+_LOGGER = logging.getLogger(__name__)
+REQUEST_TIMEOUT = 15
 
 
 class Device:
@@ -119,7 +125,12 @@ class ZiroomApi:
         url = f"{self.base_url}{path}"
         headers = self._create_headers(timestamp)
         
-        response = requests.post(url, data=body, headers=headers)
+        response = requests.post(
+            url,
+            data=body,
+            headers=headers,
+            timeout=REQUEST_TIMEOUT,
+        )
         response.raise_for_status()
         
         encrypted_response = response.text
@@ -206,8 +217,8 @@ class ZiroomApi:
             return True
         except ZiroomAuthError:
             raise
-        except Exception as e:
-            print(f"Set device state error: {e}")
+        except Exception as err:
+            _LOGGER.error("Failed to set state for device %s: %s", device_id, err)
             return False
     
     def _get_device_props(self, device_detail: Dict[str, Any], prop: str) -> Optional[Dict[str, Any]]:
@@ -227,7 +238,7 @@ class ZiroomApi:
             group_info = self._get_device_props(device_detail, prop)
             
             if not group_info:
-                print(f"Cannot find property group: {prop}")
+                _LOGGER.error("Cannot find property group %s for device %s", prop, device_id)
                 return False
             
             group_type = group_info.get('groupType')
@@ -240,40 +251,75 @@ class ZiroomApi:
                         element = e
                         break
                 if not element:
-                    print(f"Cannot find element for value: {value}")
+                    _LOGGER.error(
+                        "Cannot find element for property %s value %s on device %s",
+                        prop,
+                        value,
+                        device_id,
+                    )
                     return False
                 return self.set_device_state(device_id, element.get('prodOperCode'), str(value))
             
             elif group_type == 2:
                 if not dev_element_list:
-                    print(f"No elements found for group type 2")
+                    _LOGGER.error(
+                        "No elements found for property %s on device %s",
+                        prop,
+                        device_id,
+                    )
                     return False
                 element = dev_element_list[0]
                 max_value = element.get('maxValue', float('inf'))
                 min_value = element.get('minValue', -float('inf'))
                 num_value = float(value)
                 if num_value < min_value or num_value > max_value:
-                    print(f"Value out of range: {value} (min: {min_value}, max: {max_value})")
+                    _LOGGER.error(
+                        "Value %s is out of range for property %s on device %s "
+                        "(min: %s, max: %s)",
+                        value,
+                        prop,
+                        device_id,
+                        min_value,
+                        max_value,
+                    )
                     return False
                 return self.set_device_state(device_id, element.get('prodOperCode'), str(value))
             
             else:
-                print(f"Unsupported group type: {group_type}")
+                _LOGGER.error(
+                    "Unsupported group type %s for property %s on device %s",
+                    group_type,
+                    prop,
+                    device_id,
+                )
                 return False
         except ZiroomAuthError:
             raise
-        except Exception as e:
-            print(f"Set device prop error: {e}")
+        except Exception as err:
+            _LOGGER.error(
+                "Failed to set property %s for device %s: %s",
+                prop,
+                device_id,
+                err,
+            )
             return False
     
-    def get_device_prop(self, device_id: str, prop: str) -> Optional[str]:
+    def get_device_prop(
+        self,
+        device_id: str,
+        prop: str,
+        force_refresh: bool = False,
+    ) -> Optional[str]:
         """Get device property value.
         
         If prop is a suffix (e.g., "curtain_opening"), it will search for any key
         ending with that suffix. If prop is a full key, it will match exactly.
         """
         try:
-            device_detail = self.get_device_detail(device_id, force_refresh=False)
+            device_detail = self.get_device_detail(
+                device_id,
+                force_refresh=force_refresh,
+            )
             dev_state_map = device_detail.get('devStateMap', {})
             
             if prop in dev_state_map:
@@ -337,12 +383,27 @@ class ZiroomApi:
         start_time = time.time()
         while time.time() - start_time < timeout:
             try:
-                current_value = self.get_device_prop(device_id, prop_suffix)
+                current_value = self.get_device_prop(
+                    device_id,
+                    prop_suffix,
+                    force_refresh=True,
+                )
                 if current_value == expected_value:
                     return True
-            except Exception:
-                pass
+            except Exception as err:
+                _LOGGER.debug(
+                    "Failed to refresh property %s for device %s while waiting: %s",
+                    prop_suffix,
+                    device_id,
+                    err,
+                )
             time.sleep(poll_interval)
+        _LOGGER.warning(
+            "Timed out waiting for property %s on device %s to become %s",
+            prop_suffix,
+            device_id,
+            expected_value,
+        )
         return False
     
     def control_aircon(self, device_id: str, temperature: int = None, mode: int = None, speed: int = None, on: bool = None, wait_for_update: bool = True) -> bool:
@@ -362,34 +423,40 @@ class ZiroomApi:
             success = self._set_device_prop(device_id, 'set_on_off', '1' if on else '0')
             if not success:
                 return False
-            wait_props.append(('conditioner_powerstate', '1' if on else '0'))
+            power_prop = ('conditioner_powerstate', '1' if on else '0')
+            wait_props.append(power_prop)
+            if wait_for_update and not self._wait_for_state_update(
+                device_id,
+                *power_prop,
+            ):
+                return False
             if not on:
-                if wait_for_update:
-                    for prop, expected in wait_props:
-                        self._wait_for_state_update(device_id, prop, expected)
                 return True
-        else:
-            if temperature is not None:
-                success = self._set_device_prop(device_id, 'set_tem', str(temperature))
-                if not success:
-                    return False
-                wait_props.append(('conditioner_temper', str(temperature)))
-            
-            if mode is not None:
-                success = self._set_device_prop(device_id, 'set_mode', str(mode))
-                if not success:
-                    return False
-                wait_props.append(('conditioner_model', str(mode)))
-            
-            if speed is not None:
-                success = self._set_device_prop(device_id, 'set_wind_speed', str(speed))
-                if not success:
-                    return False
-                wait_props.append(('conditioner_windspeed', str(speed)))
+
+        if temperature is not None:
+            success = self._set_device_prop(device_id, 'set_tem', str(temperature))
+            if not success:
+                return False
+            wait_props.append(('conditioner_temper', str(temperature)))
+
+        if mode is not None:
+            success = self._set_device_prop(device_id, 'set_mode', str(mode))
+            if not success:
+                return False
+            wait_props.append(('conditioner_model', str(mode)))
+
+        if speed is not None:
+            success = self._set_device_prop(device_id, 'set_wind_speed', str(speed))
+            if not success:
+                return False
+            wait_props.append(('conditioner_windspeed', str(speed)))
         
         if wait_for_update and wait_props:
             for prop, expected in wait_props:
-                self._wait_for_state_update(device_id, prop, expected)
+                if prop == 'conditioner_powerstate':
+                    continue
+                if not self._wait_for_state_update(device_id, prop, expected):
+                    return False
         
         return True
     

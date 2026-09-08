@@ -11,6 +11,7 @@ from homeassistant.components.climate import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -83,7 +84,13 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
     @property
     def available(self) -> bool:
         """Return if entity is available."""
-        return self._device_id in self.coordinator.data
+        coordinator_data = self.coordinator.data or {}
+        device_data = coordinator_data.get(self._device_id)
+        return (
+            super().available
+            and device_data is not None
+            and device_data.get("detail") is not None
+        )
 
     @property
     def current_temperature(self) -> float | None:
@@ -136,80 +143,51 @@ class ZiroomClimate(CoordinatorEntity[ZiroomDataUpdateCoordinator], ClimateEntit
         """Set target temperature."""
         temp = kwargs.get("temperature")
         if temp is not None:
-            await self.hass.async_add_executor_job(
-                self.coordinator.api.control_aircon,
-                self._device_id,
-                int(temp),
-                None,
-                None,
-                None,
-            )
-            await self.coordinator.async_request_refresh()
+            await self._async_control_aircon(temperature=int(temp))
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set hvac mode."""
         if hvac_mode == HVACMode.OFF:
-            on = False
+            await self._async_control_aircon(on=False)
         else:
-            on = True
             mode = next((k for k, v in HA_HVAC_MODES.items() if v == hvac_mode), 1)
-        
-        if hvac_mode == HVACMode.OFF:
-            await self.hass.async_add_executor_job(
-                self.coordinator.api.control_aircon,
-                self._device_id,
-                None,
-                None,
-                None,
-                on,
-            )
-        else:
-            await self.hass.async_add_executor_job(
-                self.coordinator.api.control_aircon,
-                self._device_id,
-                None,
-                mode,
-                None,
-                on,
-            )
-        await self.coordinator.async_request_refresh()
+            turn_on = True if self.hvac_mode == HVACMode.OFF else None
+            await self._async_control_aircon(mode=mode, on=turn_on)
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set fan mode."""
         speed = next((k for k, v in FAN_SPEEDS.items() if v == fan_mode), 102)
-        await self.hass.async_add_executor_job(
-            self.coordinator.api.control_aircon,
-            self._device_id,
-            None,
-            None,
-            speed,
-            None,
-        )
-        await self.coordinator.async_request_refresh()
+        await self._async_control_aircon(speed=speed)
 
     async def async_turn_on(self) -> None:
         """Turn on."""
-        await self.hass.async_add_executor_job(
-            self.coordinator.api.control_aircon,
-            self._device_id,
-            None,
-            None,
-            None,
-            True,
-        )
-        await self.coordinator.async_request_refresh()
+        await self._async_control_aircon(on=True)
 
     async def async_turn_off(self) -> None:
         """Turn off."""
-        await self.hass.async_add_executor_job(
+        await self._async_control_aircon(on=False)
+
+    async def _async_control_aircon(
+        self,
+        temperature: int | None = None,
+        mode: int | None = None,
+        speed: int | None = None,
+        on: bool | None = None,
+    ) -> None:
+        """Control the air conditioner and refresh its state."""
+        success = await self.hass.async_add_executor_job(
             self.coordinator.api.control_aircon,
             self._device_id,
-            None,
-            None,
-            None,
-            False,
+            temperature,
+            mode,
+            speed,
+            on,
         )
         await self.coordinator.async_request_refresh()
+        if not success:
+            raise HomeAssistantError(
+                f"Failed to control Ziroom air conditioner {self._device_id}"
+            )
 
     def _get_current_temp(self) -> int:
         """Get current target temp."""
